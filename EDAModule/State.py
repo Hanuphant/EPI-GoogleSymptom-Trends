@@ -16,6 +16,7 @@ class State:
     def __init__(self, name):
         super(State, self).__init__()
         self.name = name
+        self.initialize()
 
 
     def initialize(self) -> None:
@@ -63,7 +64,7 @@ class State:
         """
 
         # Create the dataframe
-        self.results = pd.DataFrame({'symptom': [], 'grangerCausalityPVal': [], 'mmcorrelation': [], 'time_lag': [], 'abscorrelation': []})
+        self.results = pd.DataFrame({'symptom': [], 'grangerCausalityPVal': [], 'mmcorrelation': [], 'time_lag': [], 'abscorrelation': [], 'ccfauc': [], 'ccf_lag1': []})
 
         # For each symptom get the granger causality and cross correlation
         for symptom in self.symptoms:
@@ -83,12 +84,18 @@ class State:
             # Get the time lag
             time_lag = lags[np.argmax(corrstd)]
 
+            # ccf_lag1
+            ccf_lag1 = corr[np.where(lags == 1)[0][0]] - corr[np.where(lags == -1)[0][0]]
+
+            # ccf-auc
+            ccf_auc = np.trapz(corr[corr.shape[0]//2-maxlag:corr.shape[0]//2+maxlag+1], dx=0.01)
+
             # Granger Test
             gran = grangercausalitytests(grangerdat[['new_case', symptom]], maxlag=maxlag, verbose=False)
 
             self.results = self.results.append({'symptom': symptom, 'grangerCausalityPVal': gran[1][0]['ssr_ftest'][1],
                                             'mmcorrelation': np.max(corr), 'time_lag': time_lag,
-                                            'abscorrelation': np.max(corrstd)}, ignore_index=True)
+                                            'abscorrelation': np.max(corrstd), 'ccfauc':ccf_auc, 'ccflag1': ccf_lag1},  ignore_index=True)
 
         try:
             os.makedirs(f"./datasets/features/{self.name}/")
@@ -334,6 +341,8 @@ class State:
             fig.update_layout(title_text='Granger Causality')
             fig.savefig('./datasets/weekly/{}/shared_{}_symptoms.png'.format(self.name, t), dpi=300)
             fig.show()
+
+
 
 
 
