@@ -56,3 +56,4 @@ def initialize():
         dfs.append(statedf)
 
     del dfs
+    return regions
