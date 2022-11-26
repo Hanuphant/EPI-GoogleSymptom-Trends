@@ -24,6 +24,7 @@ def initialize():
            regions]
 
     # Store the weekly dataframes to a pickle seperate pickle files
+    regs = []
     for i, region in enumerate(regions):
         try:
             os.makedirs(f"./datasets/weekly/{region[3:]}")
@@ -31,6 +32,7 @@ def initialize():
             pass
         with open(f"./datasets/weekly/{region[3:]}/dataset.pkl", "wb") as f:
             pkl.dump(dfs[i], f)
+        regs.append(region[3:])
 
     del dfs
 
@@ -56,4 +58,4 @@ def initialize():
         dfs.append(statedf)
 
     del dfs
-    return regions
+    return regs

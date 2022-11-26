@@ -52,7 +52,7 @@ class State:
         self.df['date'] = pd.to_datetime(self.df['date'])
 
         # Merge te datasets on date
-        self.df = pd.merge(self.df, cdcdf, on='date', how='left')
+        self.df = self.df.merge(cdcdf, on='date', how='inner')
 
         self.df['date'] = pd.to_datetime(self.df['date'])
 
@@ -68,7 +68,7 @@ class State:
 
         # For each symptom get the granger causality and cross correlation
         for symptom in self.symptoms:
-            grangerdat = self.df[['new_cases', symptom]]
+            grangerdat = self.df[['new_case', symptom]]
 
             # Standize the data
             grangerdatstd = (grangerdat - grangerdat.mean()) / grangerdat.std()
