@@ -13,7 +13,7 @@ import plotly.express as px
 
 
 class State:
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         super(State, self).__init__()
         self.name = name
         self.initialize()
@@ -59,16 +59,22 @@ class State:
     def correlation_analysis(self, maxlag: int = 2) -> None:
         """
         Performs cross correlation analysis as well as granger causality tests
+
+        Can be optimied by using pandas parallelization
+
         Returns:
             None
         """
 
         # Create the dataframe
-        self.results = pd.DataFrame({'symptom': [], 'grangerCausalityPVal': [], 'mmcorrelation': [], 'time_lag': [], 'abscorrelation': [], 'ccfauc': [], 'ccf_lag1': []})
+        self.results = pd.DataFrame({'symptom': [], 'grangerCausalityPVal': [], 'mmcorrelation': [], 'time_lag': [], 'abscorrelation': [], 'ccfauc': [], 'ccf_lag1': [], 'grangerCasualityFtest': []})
 
         # For each symptom get the granger causality and cross correlation
         for symptom in self.symptoms:
             grangerdat = self.df[['new_case', symptom]]
+
+            # Remove rows which are NA
+            grangerdat = grangerdat.dropna()            
 
             # Standize the data
             grangerdatstd = (grangerdat - grangerdat.mean()) / grangerdat.std()
@@ -93,9 +99,11 @@ class State:
             # Granger Test
             gran = grangercausalitytests(grangerdat[['new_case', symptom]], maxlag=maxlag, verbose=False)
 
-            self.results = self.results.append({'symptom': symptom, 'grangerCausalityPVal': gran[1][0]['ssr_ftest'][1],
+            # Get the lowest p-value in the gran test
+
+            self.results = self.results.append({'symptom': symptom, 'grangerCasualityFtest': gran[maxlag-1][0]['ssr_ftest'][0] ,'grangerCausalityPVal': gran[maxlag-1][0]['ssr_ftest'][1],
                                             'mmcorrelation': np.max(corr), 'time_lag': time_lag,
-                                            'abscorrelation': np.max(corrstd), 'ccfauc':ccf_auc, 'ccflag1': ccf_lag1},  ignore_index=True)
+                                            'abscorrelation': np.max(corrstd), 'ccfauc':ccf_auc, 'ccf_lag1': ccf_lag1},  ignore_index=True)
 
         try:
             os.makedirs(f"./datasets/features/{self.name}/")
