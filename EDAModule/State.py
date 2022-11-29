@@ -112,7 +112,7 @@ class State:
         with open(f"./datasets/features/{self.name}/correlation_features.pkl", "wb") as f:
             pkl.dump(self.results, f)
 
-    def get_gransyms(self, number_of_symptoms : int = 100, as_set : bool = False) -> Set[str] | pd.Series:
+    def get_gransyms(self, number_of_symptoms : int = 100, as_set : bool = False) -> Set[str] or pd.Series:
         """
         Get the symptoms with the highest granger causality
         Returns:
@@ -127,7 +127,7 @@ class State:
         else:
             return self.results.sort_values(by='grangerCausalityPVal', ascending=True).head(number_of_symptoms)['symptom'].values
 
-    def get_corrsyms(self, number_of_symptoms : int = 100, as_set : bool = False) -> Set[str] | pd.Series:
+    def get_corrsyms(self, number_of_symptoms : int = 100, as_set : bool = False) -> Set[str] or pd.Series:
         """
         Get the symptoms with the highest cross correlation
         Returns:
@@ -143,7 +143,7 @@ class State:
         else:
             return self.results.sort_values(by='abscorrelation', ascending=False).head(number_of_symptoms)['symptom'].values
 
-    def get_RFECV_features(self, random_state : int = 789) -> pd.Series | List[str]:
+    def get_RFECV_features(self, random_state : int = 789) -> pd.Series or List[str]:
         """
         Get the features selected by RFECV
         Arguments:
@@ -210,7 +210,7 @@ class State:
         self.results['magdelay'] = self.results['time_lag'].abs()
         self.lagsyms = self.results.sort_values(by='magdelay', ascending=True).head(feature_counts)['symptom'].values
 
-    def implement_darts(self, random_state : int = 789, input_chunk_length : int =  20, output_chunk_length : int = 5, feature_counts : int = None) -> pd.Series | List[str]:
+    def implement_darts(self, random_state : int = 789, input_chunk_length : int =  20, output_chunk_length : int = 5, feature_counts : int = None) -> pd.Series or List[str]:
         """
         Get the features selected by DARTS
         Arguments:
@@ -313,7 +313,7 @@ class State:
 
         return set([neighbor for neighbor in self.find_1_step_neighbors() for neighbor in State(neighbor).find_1_step_neighbors()])
 
-    def choropleth_maps(self, type : str | List[str], number_of_symptoms : int = 100) -> None:
+    def choropleth_maps(self, type : str or List[str], number_of_symptoms : int = 100) -> None:
         """
         Create a choropleth map
         Arguments:
@@ -331,23 +331,26 @@ class State:
             self.correlation_analysis()
 
         neighbors = self.find_1_step_neighbors()
-        neighborsofneighbors = self.find_2_step_neighbors().union(neighbors)
+        neighborsofneighbors = list(self.find_2_step_neighbors().union(neighbors))
 
-        chloropleth_df = pd.DataFrame({'state': neighborsofneighbors})
+        choropleth_df = pd.DataFrame(neighborsofneighbors, columns=['state'])
 
         for t in type:
             if t == 'granger':
-                chloropleth_df[t] = chloropleth_df['state'].apply(lambda x:  list(self.get_gransyms(number_of_symptoms=number_of_symptoms, as_set=True) & State(x).get_gransyms(number_of_symptoms=number_of_symptoms, as_set=True)))
+                choropleth_df[t] = choropleth_df['state'].apply(lambda x:  list(self.get_gransyms(number_of_symptoms=number_of_symptoms, as_set=True) & State(x).get_gransyms(number_of_symptoms=number_of_symptoms, as_set=True)))
+                choropleth_df[f'{t}_count'] = choropleth_df[t].apply(lambda x: len(x))
+
 
             if t == 'correlation':
-                chloropleth_df[t] = chloropleth_df['state'].apply(lambda x:  list(self.get_corrsyms(number_of_symptoms=number_of_symptoms, as_set=True) & State(x).get_corrsyms(number_of_symptoms=number_of_symptoms, as_set=True)))
+                choropleth_df[t] = choropleth_df['state'].apply(lambda x:  list(self.get_corrsyms(number_of_symptoms=number_of_symptoms, as_set=True) & State(x).get_corrsyms(number_of_symptoms=number_of_symptoms, as_set=True)))
+                choropleth_df[f'{t}_count'] = choropleth_df[t].apply(lambda x: len(x))
 
             else:
                 raise ValueError('{} is not a valid type'.format(t))
 
-            fig = px.chloropleth(chloropleth_df, locations="state", locationmode="USA-states", color=t, scope="usa", hover_name="state", color_continuous_scale=px.colors.sequential.Blues)
-            fig.update_layout(title_text='Granger Causality')
-            fig.savefig('./datasets/weekly/{}/shared_{}_symptoms.png'.format(self.name, t), dpi=300)
+            fig = px.choropleth(choropleth_df, locations="state", locationmode="USA-states", color=f'{t}_count', scope="usa", hover_name="state", color_continuous_scale=px.colors.sequential.Blues)
+            fig.update_layout(title_text=t)
+            fig.write_image(f'./datasets/weekly/{self.name}/shared_{t}_symptoms.png')
             fig.show()
 
 
