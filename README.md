@@ -17,3 +17,4 @@ Packages required:
 - Joblib
 - Seaborn
 - Scipy
+- tqdm
