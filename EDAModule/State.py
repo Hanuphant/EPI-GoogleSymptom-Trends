@@ -83,9 +83,9 @@ class State:
             grangerdatmm = (grangerdat - grangerdat.min()) / (grangerdat.max() - grangerdat.min())
 
             # Scipy cross correlation
-            corrstd = correlate(grangerdatstd[symptom], grangerdatstd['new_case'])
-            lags = correlation_lags(len(grangerdat[symptom]), len(grangerdat['new_case']))
-            corr = correlate(grangerdatmm[symptom], grangerdatmm['new_case'])
+            corrstd = correlate(grangerdatstd['new_case'], grangerdatstd[symptom])
+            lags = correlation_lags(len(grangerdat['new_case']), len(grangerdat[symptom]))
+            corr = correlate(grangerdatmm['new_case'], grangerdatmm[symptom])
 
             # Get the time lag
             time_lag = lags[np.argmax(corrstd)]
@@ -313,7 +313,7 @@ class State:
 
         return set([neighbor for neighbor in self.find_1_step_neighbors() for neighbor in State(neighbor).find_1_step_neighbors()])
 
-    def choropleth_maps(self, type : str or List[str], number_of_symptoms : int = 100) -> None:
+    def choropleth_maps(self, number_of_symptoms : int = 100) -> None:
         """
         Create a choropleth map
         Arguments:
@@ -322,9 +322,6 @@ class State:
         Returns:
             None
         """
-        if isinstance(type, str):
-            type = [type]
-
         try:
             self.results
         except AttributeError:
@@ -334,24 +331,19 @@ class State:
         neighborsofneighbors = list(self.find_2_step_neighbors().union(neighbors))
 
         choropleth_df = pd.DataFrame(neighborsofneighbors, columns=['state'])
-
-        for t in type:
+        types = ['granger', 'correlation']
+        for t in types:
             if t == 'granger':
                 choropleth_df[t] = choropleth_df['state'].apply(lambda x:  list(self.get_gransyms(number_of_symptoms=number_of_symptoms, as_set=True) & State(x).get_gransyms(number_of_symptoms=number_of_symptoms, as_set=True)))
-                choropleth_df[f'{t}_count'] = choropleth_df[t].apply(lambda x: len(x))
-
+                choropleth_df[t+'_count'] = choropleth_df[t].apply(lambda x: len(x))
 
             if t == 'correlation':
                 choropleth_df[t] = choropleth_df['state'].apply(lambda x:  list(self.get_corrsyms(number_of_symptoms=number_of_symptoms, as_set=True) & State(x).get_corrsyms(number_of_symptoms=number_of_symptoms, as_set=True)))
-                choropleth_df[f'{t}_count'] = choropleth_df[t].apply(lambda x: len(x))
+                choropleth_df[t+'_count'] = choropleth_df[t].apply(lambda x: len(x))
 
-            else:
-                raise ValueError('{} is not a valid type'.format(t))
-
-            fig = px.choropleth(choropleth_df, locations="state", locationmode="USA-states", color=f'{t}_count', scope="usa", hover_name="state", color_continuous_scale=px.colors.sequential.Blues)
+            fig = px.choropleth(choropleth_df, locations="state", locationmode="USA-states", color=t+'_count', scope="usa", hover_name="state", color_continuous_scale=px.colors.sequential.Blues)
             fig.update_layout(title_text=t)
             fig.write_image(f'./datasets/weekly/{self.name}/shared_{t}_symptoms.png')
-            fig.show()
 
 
 
